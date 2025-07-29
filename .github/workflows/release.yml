@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+    
+    - name: Run tests
+      run: go test -v ./...
+    
+    - name: Build binaries
+      run: |
+        mkdir -p dist
+        
+        # Linux AMD64
+        GOOS=linux GOARCH=amd64 go build -o dist/docker-tester-linux-amd64 .
+        
+        # Linux ARM64
+        GOOS=linux GOARCH=arm64 go build -o dist/docker-tester-linux-arm64 .
+        
+        # Windows AMD64
+        GOOS=windows GOARCH=amd64 go build -o dist/docker-tester-windows-amd64.exe .
+        
+        # macOS AMD64
+        GOOS=darwin GOARCH=amd64 go build -o dist/docker-tester-darwin-amd64 .
+        
+        # macOS ARM64 (Apple Silicon)
+        GOOS=darwin GOARCH=arm64 go build -o dist/docker-tester-darwin-arm64 .
+    
+    - name: Create release archives
+      run: |
+        cd dist
+        
+        # Create tar.gz for Unix systems
+        tar -czf docker-tester-linux-amd64.tar.gz docker-tester-linux-amd64
+        tar -czf docker-tester-linux-arm64.tar.gz docker-tester-linux-arm64
+        tar -czf docker-tester-darwin-amd64.tar.gz docker-tester-darwin-amd64
+        tar -czf docker-tester-darwin-arm64.tar.gz docker-tester-darwin-arm64
+        
+        # Create zip for Windows
+        zip docker-tester-windows-amd64.zip docker-tester-windows-amd64.exe
+    
+    - name: Generate changelog
+      id: changelog
+      run: |
+        if [ -f CHANGELOG.md ]; then
+          # Extract changelog for this version
+          awk '/^## \[/{if(p) exit; if(/\['"${GITHUB_REF#refs/tags/}"'\]/) p=1} p' CHANGELOG.md > release_notes.md
+        else
+          echo "Release ${GITHUB_REF#refs/tags/}" > release_notes.md
+        fi
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body_path: release_notes.md
+        files: |
+          dist/*.tar.gz
+          dist/*.zip
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

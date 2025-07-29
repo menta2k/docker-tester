@@ -1,0 +1,164 @@
+# Maximum number of concurrent tests (optional, default: 3)
+concurrency: 3
+
+tests:
+  - name: "nginx-basic-test"
+    image: "nginx:alpine"
+    exposed_port: "80/tcp"
+    wait_for:
+      strategy: "http"
+      target: "/"
+      timeout: 30
+    assertions:
+      - type: "http_status"
+        target: "/"
+        expected: "200"
+      - type: "http_body_contains"
+        target: "/"
+        expected: "Welcome to nginx"
+
+  - name: "redis-connection-test"
+    image: "redis:alpine"
+    exposed_port: "6379/tcp"
+    wait_for:
+      strategy: "port"
+      target: "6379/tcp"
+      timeout: 30
+    assertions:
+      - type: "port_open"
+        target: "6379/tcp"
+        expected: "true"
+
+  - name: "httpbin-api-test"
+    image: "kennethreitz/httpbin"
+    exposed_port: "80/tcp"
+    wait_for:
+      strategy: "http"
+      target: "/get"
+      timeout: 45
+    assertions:
+      - type: "http_status"
+        target: "/get"
+        expected: "200"
+      - type: "http_body_contains"
+        target: "/get"
+        expected: "origin"
+      - type: "http_status"
+        target: "/status/404"
+        expected: "404"
+
+  - name: "postgres-database-test"
+    image: "postgres:13-alpine"
+    exposed_port: "5432/tcp"
+    environment:
+      POSTGRES_PASSWORD: "testpass"
+      POSTGRES_USER: "testuser"
+      POSTGRES_DB: "testdb"
+    wait_for:
+      strategy: "log"
+      target: "database system is ready to accept connections"
+      timeout: 60
+    assertions:
+      - type: "port_open"
+        target: "5432/tcp"
+        expected: "true"
+
+  - name: "apache-web-server-test"
+    image: "httpd:alpine"
+    exposed_port: "80/tcp"
+    wait_for:
+      strategy: "http"
+      target: "/"
+      timeout: 30
+    assertions:
+      - type: "http_status"
+        target: "/"
+        expected: "200"
+      - type: "http_body_contains"
+        target: "/"
+        expected: "It works!"
+
+  - name: "mysql-database-test"
+    image: "mysql:8.0"
+    exposed_port: "3306/tcp"
+    environment:
+      MYSQL_ROOT_PASSWORD: "rootpass"
+      MYSQL_DATABASE: "testdb"
+      MYSQL_USER: "testuser"
+      MYSQL_PASSWORD: "testpass"
+    wait_for:
+      strategy: "log"
+      target: "ready for connections"
+      timeout: 90
+    assertions:
+      - type: "port_open"
+        target: "3306/tcp"
+        expected: "true"
+
+  - name: "memcached-cache-test"
+    image: "memcached:alpine"
+    exposed_port: "11211/tcp"
+    wait_for:
+      strategy: "port"
+      target: "11211/tcp"
+      timeout: 30
+    assertions:
+      - type: "port_open"
+        target: "11211/tcp"
+        expected: "true"
+
+  - name: "nodejs-app-exec-test"
+    image: "node:alpine"
+    exposed_port: "3000/tcp"
+    commands:
+      - "sh"
+      - "-c"
+      - "echo 'const http = require(\"http\"); const server = http.createServer((req, res) => res.end(\"Hello World\")); server.listen(3000);' > app.js && node app.js"
+    wait_for:
+      strategy: "exec"
+      target: "curl -f http://localhost:3000 || nc -z localhost 3000"
+      timeout: 45
+    assertions:
+      - type: "port_open"
+        target: "3000/tcp"
+        expected: "true"
+
+  - name: "health-check-exec-test"
+    image: "nginx:alpine"
+    exposed_port: "80/tcp"
+    wait_for:
+      strategy: "exec"
+      target: "wget --quiet --tries=1 --spider http://localhost:80/ || exit 1"
+      timeout: 30
+    assertions:
+      - type: "http_status"
+        target: "/"
+        expected: "200"
+
+  - name: "file-creation-test"
+    image: "alpine:latest"
+    exposed_port: "8080/tcp"
+    commands:
+      - "sh"
+      - "-c"
+      - "sleep 5 && echo 'Application ready' > /tmp/ready.txt && nc -l -p 8080"
+    wait_for:
+      strategy: "file"
+      target: "/tmp/ready.txt"
+      timeout: 15
+    assertions:
+      - type: "port_open"
+        target: "8080/tcp"
+        expected: "true"
+
+  - name: "config-file-wait-test"
+    image: "nginx:alpine"
+    exposed_port: "80/tcp"
+    wait_for:
+      strategy: "file"
+      target: "/etc/nginx/nginx.conf"
+      timeout: 10
+    assertions:
+      - type: "http_status"
+        target: "/"
+        expected: "200"
