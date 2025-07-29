@@ -13,8 +13,8 @@ Test your Docker containers with simple YAML configuration files.
 
 1. **Setup**:
    ```bash
-   git clone <repository-url>
-   cd dockert
+   git clone https://github.com/menta2k/docker-tester
+   cd docker-tester
    go mod tidy
    ```
 
